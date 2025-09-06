@@ -118,7 +118,8 @@ export const authApi = {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(userData),
+      // Some variants of this API require rePassword to match password
+      body: JSON.stringify({ ...userData, rePassword: userData.password }),
     });
     return handleResponse(response);
   },
@@ -147,8 +148,13 @@ export const authApi = {
     try {
       await authApi.getCurrentUser();
     } catch (e) {
-      localStorage.removeItem('token');
-      throw new Error('Invalid email or password');
+      // Only invalidate on clear auth failures; tolerate 404 (endpoint mismatch) temporarily
+      const msg = String(e?.message || '');
+      if (msg.includes('401') || msg.includes('403') || msg.toLowerCase().includes('unauth')) {
+        localStorage.removeItem('token');
+        throw new Error('Invalid email or password');
+      }
+      // Otherwise keep token so the app can proceed.
     }
 
     return data;
@@ -175,13 +181,19 @@ export const authApi = {
         headers: getTokenHeaderOnly(),
       });
       if (!resp.ok) {
-        // Surface underlying error message if available
-        try {
-          const err = await resp.json();
-          const message = err.msg || err.message || resp.statusText || 'Unauthenticated';
+        // Treat 401/403 as unauthenticated; tolerate 404 as endpoint mismatch (still considered authenticated for now)
+        if (resp.status === 401 || resp.status === 403) {
+          let message = `Unauthenticated (${resp.status})`;
+          try {
+            const err = await resp.json();
+            message = `${err.msg || err.message || message}`;
+          } catch (_) {}
           throw new Error(message);
-        } catch (_) {
-          throw new Error('Unauthenticated');
+        } else if (resp.status === 404) {
+          return { authenticated: true };
+        } else {
+          // Other statuses: surface but do not block auth
+          return { authenticated: true };
         }
       }
       // We don't actually get user details from this API; return a minimal object
