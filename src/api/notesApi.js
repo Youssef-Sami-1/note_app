@@ -143,6 +143,14 @@ export const authApi = {
     }
     localStorage.setItem('token', token);
 
+    // Immediately verify token with backend; if invalid, clear and fail
+    try {
+      await authApi.getCurrentUser();
+    } catch (e) {
+      localStorage.removeItem('token');
+      throw new Error('Invalid email or password');
+    }
+
     return data;
   },
 
