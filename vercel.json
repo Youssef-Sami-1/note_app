@@ -1,6 +1,11 @@
 {
   "version": 2,
   "routes": [
+    { "src": "/assets/(.*)", "dest": "/assets/$1" },
+    { "src": "/favicon.ico", "dest": "/favicon.ico" },
+    { "src": "/vite.svg", "dest": "/vite.svg" },
+    { "src": "/robots.txt", "dest": "/robots.txt" },
+    { "src": "/(.*)\.(js|css|png|jpg|jpeg|gif|svg|ico|json)", "dest": "/$1.$2" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
