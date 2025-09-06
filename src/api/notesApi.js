@@ -166,25 +166,29 @@ export const authApi = {
     return !!localStorage.getItem('token');
   },
 
-  // Get current user info
+  // Verify authentication by probing a protected endpoint (/notes with token header)
   getCurrentUser: async () => {
     if (USE_MOCK || !API_BASE_URL) return mockAuth.getCurrentUser();
-    // Try common endpoints used by similar APIs
-    const endpoints = [
-      `${API_BASE_URL}/users/profile`,
-      `${API_BASE_URL}/users/me`,
-      `${API_BASE_URL}/auth/me`
-    ];
-    for (const url of endpoints) {
-      try {
-        const response = await fetch(url, { method: 'GET', headers: getBearerHeaders() });
-        if (response.ok) return handleResponse(response);
-      } catch (_) {
-        // try next
+    try {
+      const resp = await fetch(`${API_BASE_URL}/notes`, {
+        method: 'GET',
+        headers: getTokenHeaderOnly(),
+      });
+      if (!resp.ok) {
+        // Surface underlying error message if available
+        try {
+          const err = await resp.json();
+          const message = err.msg || err.message || resp.statusText || 'Unauthenticated';
+          throw new Error(message);
+        } catch (_) {
+          throw new Error('Unauthenticated');
+        }
       }
+      // We don't actually get user details from this API; return a minimal object
+      return { authenticated: true };
+    } catch (e) {
+      throw new Error(e?.message || 'Unauthenticated');
     }
-    // If none of the endpoints responded OK, consider the token invalid
-    throw new Error('Unauthenticated');
   }
 };
 
