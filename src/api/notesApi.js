@@ -135,11 +135,14 @@ export const authApi = {
       body: JSON.stringify(credentials),
     });
     const data = await handleResponse(response);
-    
+
     // Store token in localStorage (support multiple response shapes)
     const token = data.token || data.accessToken || data.jwt || data?.data?.token;
-    if (token) localStorage.setItem('token', token);
-    
+    if (!token) {
+      throw new Error('Login failed: missing token');
+    }
+    localStorage.setItem('token', token);
+
     return data;
   },
 
@@ -172,8 +175,8 @@ export const authApi = {
         // try next
       }
     }
-    // Fallback minimal object if none work
-    return { name: 'User', email: 'unknown@example.com' };
+    // If none of the endpoints responded OK, consider the token invalid
+    throw new Error('Unauthenticated');
   }
 };
 
